@@ -1,48 +1,40 @@
-from flask import Flask, request
-from twilio.twiml.voice_response import VoiceResponse, Gather
+from flask import Flask, request, Response
 
 app = Flask(__name__)
 
-@app.route("/voice", methods=['GET', 'POST'])
-def voice():
-    response = VoiceResponse()
+@app.route("/ivr", methods=["POST", "GET"])
+def ivr_menu():
+    response_xml = """
+    <Response>
+        <GetInput action="/handle-key" method="POST" timeout="10" numDigits="1">
+            <Say language="ta-IN">வணக்கம்! மண் பரிசோதனைக்கு 1 ஐ, பூச்சி கண்டறிதலுக்கு 2 ஐ, கேள்விக்கான பதிலுக்கு 3 ஐ, அரசு திட்டங்களுக்கு 4 ஐ அழுத்தவும்.</Say>
+        </GetInput>
+    </Response>
+    """
+    return Response(response_xml, mimetype='text/xml')
 
-    gather = Gather(num_digits=1, action="/handle-key", method="POST", language="ta-IN")
-    gather.say("வணக்கம்! விவசாயி ஐ.வி.ஆர் சேவைக்கு வரவேற்கிறோம். Soil testingக்கு 1, பூச்சி கண்டறிதலுக்கு 2, கேள்விக்கு பதில் பெற 3, அரசு திட்டங்களை அறிய 4 ஐ அழுத்தவும்.", language="ta-IN")
-    response.append(gather)
-    response.redirect('/voice')
-    return str(response)
 
-@app.route("/handle-key", methods=['GET', 'POST'])
+@app.route("/handle-key", methods=["POST", "GET"])
 def handle_key():
-    digit_pressed = request.values.get('Digits')
-    response = VoiceResponse()
-
-    if digit_pressed == "1":
-        response.say("மண் பரிசோதனை: உங்கள் அருகிலுள்ள மண் பரிசோதனை மையம் - திருச்சி வேளாண் நிலையம்.", language="ta-IN")
-    elif digit_pressed == "2":
-        response.say("பூச்சி கண்டறிதல்: உங்கள் பயிரில் பழுப்பு பூச்சி இருக்கலாம். அருகிலுள்ள வேளாண்மை அதிகாரியை அணுகவும்.", language="ta-IN")
-    elif digit_pressed == "3":
-        response.say("தயவுசெய்து உங்கள் கேள்வியை கூறவும். பதிவு செய்யப்படுகிறது...", language="ta-IN")
-        response.record(timeout=5, max_length=30, action="/ai-response")
-    elif digit_pressed == "4":
-        response.say("அரசு திட்டம்: பிஎம் கிசான் திட்டம் - வருடத்திற்கு ரூ.6000 வழங்கப்படும்.", language="ta-IN")
-    else:
-        response.say("தவறான தேர்வு. மீண்டும் முயற்சிக்கவும்.", language="ta-IN")
-        response.redirect('/voice')
+    digits = request.values.get("Digits", "")
     
-    return str(response)
+    if digits == "1":
+        say_text = "மண் பரிசோதனை மையம் உங்கள் அருகில் உள்ளது."
+    elif digits == "2":
+        say_text = "பூச்சி கண்டறிதல்: பழுப்பு பூச்சி இருக்கலாம்."
+    elif digits == "3":
+        say_text = "உங்கள் கேள்வியை விரைவில் பதிலளிக்கப்படும்."
+    elif digits == "4":
+        say_text = "பிஎம் கிசான் அரசு திட்டம்: வருடத்திற்கு ரூ.6000 உதவித் தொகை."
+    else:
+        say_text = "தவறான தேர்வு. மீண்டும் முயற்சிக்கவும்."
 
-@app.route("/ai-response", methods=['POST'])
-def ai_response():
-    recording_url = request.values.get("RecordingUrl")
-
-    # Log or process the recording URL using Whisper/OpenAI later
-    print("Received question audio at:", recording_url)
-
-    response = VoiceResponse()
-    response.say("உங்கள் கேள்விக்கு பதில் விரைவில் அளிக்கப்படும். நன்றி!", language="ta-IN")
-    return str(response)
+    response_xml = f"""
+    <Response>
+        <Say language="ta-IN">{say_text}</Say>
+    </Response>
+    """
+    return Response(response_xml, mimetype='text/xml')
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=10000)
+    app.run(debug=True, host="0.0.0.0", port=5000)
